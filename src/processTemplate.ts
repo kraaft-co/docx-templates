@@ -353,6 +353,24 @@ export async function walkTemplate(
           ctx.tableCellLoopJustEnded = false;
         }
       }
+
+      // If the last generated output node is a paragraph, and it is set to be deleted,
+      // don't delete if it contains drawing elements (wp:anchor, wp:inline, w:drawing)
+      if (tag === 'w:p' && fRemoveNode) {
+        const hasDrawingElements = (node: Node): boolean => {
+          if (node._fTextNode) return false;
+          if (
+            node._tag === 'wp:anchor' ||
+            node._tag === 'wp:inline' ||
+            node._tag === 'w:drawing'
+          ) {
+            return true;
+          }
+          return node._children.some(hasDrawingElements);
+        };
+        fRemoveNode = !hasDrawingElements(nodeOut);
+      }
+
       // Execute removal, if needed. The node will no longer be part of the output, but
       // the parent will be accessible from the child (so that we can still move up the tree)
       if (fRemoveNode && nodeOut._parent != null) {
