@@ -1440,6 +1440,36 @@ Morbi dignissim consequat ex, non finibus est faucibus sodales. Integer sed just
         // Both cells should exist with content - verified via snapshot
         expect(result).toMatchSnapshot();
       });
+
+      it('Preserves anchored elements on empty paragraph', async () => {
+        const template = await fs.promises.readFile(
+          path.join(__dirname, 'fixtures', 'anchor-empty.docx')
+        );
+
+        const result = await createReport(
+          {
+            template,
+            data: {},
+          },
+          'XML'
+        );
+        expect(result).toMatchSnapshot();
+      });
+
+      it('Removes everything within a block that evaluates to false', async () => {
+        const template = await fs.promises.readFile(
+          path.join(__dirname, 'fixtures', 'falsy-block.docx')
+        );
+
+        const result = await createReport(
+          {
+            template,
+            data: {},
+          },
+          'XML'
+        );
+        expect(result).toMatchSnapshot();
+      });
     });
   });
 });
