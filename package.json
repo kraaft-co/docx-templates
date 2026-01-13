@@ -39,6 +39,7 @@
     "node": ">=6"
   },
   "dependencies": {
+    "docx4js": "^3.3.0",
     "jszip": "^3.10.1",
     "sax": "1.3.0"
   },
@@ -46,6 +47,7 @@
     "@rollup/plugin-commonjs": "^21.0.1",
     "@rollup/plugin-node-resolve": "^13.1.3",
     "@rollup/plugin-replace": "^3.0.1",
+    "@types/cheerio": "0.22",
     "@types/jest": "^29.5.0",
     "@types/node": "^20",
     "@types/qrcode": "1.5.0",
