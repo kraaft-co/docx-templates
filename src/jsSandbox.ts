@@ -18,7 +18,9 @@ export async function runUserJsAndGetRaw(
   code: string,
   ctx: Context
 ): Promise<any> {
-  if (data && code in data) {
+  const isLikelyFunctionCall = code.includes('(') && code.includes(')');
+
+  if (isLikelyFunctionCall && data && code in data) {
     const result = data[code];
     logger.debug('Command returned: ', result);
     return result;
