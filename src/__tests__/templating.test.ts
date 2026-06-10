@@ -1346,6 +1346,7 @@ Morbi dignissim consequat ex, non finibus est faucibus sodales. Integer sed just
           },
           'XML'
         );
+
         expect(result).toMatchSnapshot();
       });
 
@@ -1365,6 +1366,105 @@ Morbi dignissim consequat ex, non finibus est faucibus sodales. Integer sed just
               rows: ['Row 1', 'Row 2', 'Row 3'],
               columns: ['Column 1', 'Column 2', 'Column 3'],
             },
+          },
+          'XML'
+        );
+        expect(result).toMatchSnapshot();
+      });
+
+      it('Preserve cells when IF evaluates to false inside a column (and the whole column contains just commands) - 1', async () => {
+        const template = await fs.promises.readFile(
+          path.join(__dirname, 'fixtures', 'ifInTableWithCommands.docx')
+        );
+        const result = await createReport(
+          {
+            noSandbox,
+            template,
+            data: {
+              // leftCol is missing (falsy), rightCol has value (truthy)
+              v: [{ rightCol: 'value' }],
+            },
+            cmdDelimiter: ['{{', '}}'],
+            additionalJsContext: {
+              T: (key: string) => key,
+            },
+          },
+          'XML'
+        );
+        // The key assertion: table cells should be preserved even when
+        // the IF condition in one cell evaluates to false.
+        expect(result).toMatchSnapshot();
+      });
+
+      it('Preserve cells when IF evaluates to false inside a column (and the whole column contains just commands) - 2', async () => {
+        const template = await fs.promises.readFile(
+          path.join(__dirname, 'fixtures', 'ifInTableWithCommands.docx')
+        );
+        const result = await createReport(
+          {
+            noSandbox,
+            template,
+            data: {
+              // leftCol has value (truthy), rightCol is missing (falsy)
+              v: [{ leftCol: 'value' }],
+            },
+            cmdDelimiter: ['{{', '}}'],
+            additionalJsContext: {
+              T: (key: string) => key,
+            },
+          },
+          'XML'
+        );
+        // Both cells should still exist - verified via snapshot
+        expect(result).toMatchSnapshot();
+      });
+
+      it('Preserve cells when IF evaluates to true inside a column', async () => {
+        const template = await fs.promises.readFile(
+          path.join(__dirname, 'fixtures', 'ifInTableWithCommands.docx')
+        );
+        const result = await createReport(
+          {
+            noSandbox,
+            template,
+            data: {
+              v: [{ leftCol: 'left', rightCol: 'right' }],
+            },
+            cmdDelimiter: ['{{', '}}'],
+            additionalJsContext: {
+              T: (key: string) => key,
+            },
+          },
+          'XML'
+        );
+        // Both cells should exist with content - verified via snapshot
+        expect(result).toMatchSnapshot();
+      });
+
+      it('Preserves anchored elements on empty paragraph', async () => {
+        const template = await fs.promises.readFile(
+          path.join(__dirname, 'fixtures', 'anchor-empty.docx')
+        );
+
+        const result = await createReport(
+          {
+            template,
+            data: {},
+          },
+          'XML'
+        );
+        expect(result).toMatchSnapshot();
+      });
+
+      it('Removes everything within a block that evaluates to false', async () => {
+        const template = await fs.promises.readFile(
+          path.join(__dirname, 'fixtures', 'falsy-block.docx')
+        );
+
+        const result = await createReport(
+          {
+            template,
+            data: {},
           },
           'XML'
         );
