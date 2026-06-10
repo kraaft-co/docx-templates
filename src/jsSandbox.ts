@@ -18,6 +18,12 @@ export async function runUserJsAndGetRaw(
   code: string,
   ctx: Context
 ): Promise<any> {
+  if (data && code in data) {
+    const result = data[code];
+    logger.debug('Command returned: ', result);
+    return result;
+  }
+
   // Retrieve the current JS sandbox contents (if any) and add
   // the code to be run, and a placeholder for the result,
   // as well as all data defined by the user
