@@ -1,11 +1,12 @@
 import path from 'path';
-import { zipLoad } from '../zip';
+import { zipLoad, zipGetText } from '../zip';
 import {
   readContentTypes,
   getMainDoc,
   getMetadata,
   parseTemplate,
 } from '../main';
+import { createReport } from '../index';
 import fs from 'fs';
 import { setDebugLogSink } from '../debug';
 import { findHighestImgId } from '../processTemplate';
@@ -83,5 +84,37 @@ describe('findHighestImgId', () => {
     );
     const { jsTemplate } = await parseTemplate(template);
     expect(findHighestImgId(jsTemplate)).toBe(3);
+  });
+});
+
+describe('preprocessTemplate delimiter matching', () => {
+  // Regression test: a run of plain text that coincidentally starts matching
+  // the command delimiter (e.g. its last character equals the delimiter's
+  // first character) must not corrupt the surrounding text when that match
+  // is later aborted, even if a paragraph break is crossed while the match
+  // is still pending. Previously, `openNode._text += ' '` fired for every
+  // `w:p` boundary crossed while a delimiter match was pending, regardless
+  // of whether the match ever completed. Since the pending character(s)
+  // are only flushed back to the text *after* that space is appended, an
+  // aborted match left stray spaces injected just before the held-back
+  // character(s).
+  it('does not inject spaces when a speculative delimiter match spans paragraph breaks and then fails', async () => {
+    const template = await fs.promises.readFile(
+      path.join(__dirname, 'fixtures', 'trailingDelimiterPrefixMatch.docx')
+    );
+
+    const report = await createReport({
+      template,
+      cmdDelimiter: 'ZZ',
+      data: {},
+    });
+
+    const zip = await zipLoad(report);
+    const doc = await zipGetText(zip, 'word/document.xml');
+    const texts = doc
+      ? Array.from(doc.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)).map(m => m[1])
+      : [];
+
+    expect(texts).toEqual(['GoodbyeZ', 'The End']);
   });
 });
