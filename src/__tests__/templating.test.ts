@@ -753,6 +753,61 @@ Morbi dignissim consequat ex, non finibus est faucibus sodales. Integer sed just
         expect(result).toMatchSnapshot();
       });
 
+      it('39b LINK ids do not collide with those of a previously rendered report', async () => {
+        const fixture = await JSZip.loadAsync(
+          await fs.promises.readFile(
+            path.join(__dirname, 'fixtures', 'links.docx')
+          )
+        );
+        const documentXml = await fixture
+          .file('word/document.xml')!
+          .async('string');
+        fixture.file(
+          'word/document.xml',
+          documentXml
+            .replace(
+              '<w:r><w:t xml:space="preserve">+++LINK ({ </w:t>',
+              '<w:r><w:t xml:space="preserve">***LINK ({ </w:t>'
+            )
+            .replace(
+              "<w:t>: 'http://www.apple.com' })+++</w:t>",
+              "<w:t>: 'http://www.google.com' })***</w:t>"
+            )
+        );
+        const template = await fixture.generateAsync({ type: 'uint8array' });
+
+        const firstPass = await createReport({ noSandbox, template, data: {} });
+        const secondPass = await createReport({
+          noSandbox,
+          template: firstPass,
+          data: {},
+          cmdDelimiter: '***',
+        });
+
+        const report = await JSZip.loadAsync(secondPass);
+        const rels = await report
+          .file('word/_rels/document.xml.rels')!
+          .async('string');
+        const targets = Object.fromEntries(
+          Array.from(
+            rels.matchAll(/Id="(link\d+)"[^>]*Target="([^"]+)"/g),
+            ([, id, target]) => [id, target]
+          )
+        );
+        const xml = await report.file('word/document.xml')!.async('string');
+        const hyperlinkIds = Array.from(
+          xml.matchAll(/w:hyperlink r:id="([^"]+)"/g),
+          ([, id]) => id
+        );
+
+        expect(hyperlinkIds.map(id => targets[id])).toEqual([
+          'http://www.apple.com',
+          'http://www.google.com',
+        ]);
+        expect(new Set(hyperlinkIds).size).toBe(2);
+        expect(rels.match(/Id="link/g)).toHaveLength(2);
+      });
+
       it('3A Processes HTML commands', async () => {
         const template = await fs.promises.readFile(
           path.join(__dirname, 'fixtures', 'htmls.docx')
