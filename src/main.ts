@@ -9,6 +9,7 @@ import {
   splitCommand,
   newContext,
   findHighestImgId,
+  findHighestLinkId,
 } from './processTemplate';
 import {
   UserOptions,
@@ -206,12 +207,16 @@ async function createReport(
     findHighestImgId(prepped_template)
   );
 
+  const highest_link_id = findHighestLinkId(
+    await getRelsFromZip(zip, `${TEMPLATE_PATH}/_rels/${mainDocument}.rels`)
+  );
+
   // Process document.xml:
   // - Generate the report
   // - Build output XML and write it to disk
   // - Images
   logger.debug('Generating report...');
-  let ctx = newContext(createOptions, highest_img_id);
+  let ctx = newContext(createOptions, highest_img_id, highest_link_id);
   const result = await produceJsReport(queryResult, prepped_template, ctx);
   if (result.status === 'errors') {
     throw result.errors;
@@ -239,7 +244,7 @@ async function createReport(
   for (const [js, filePath] of prepped_secondaries) {
     // Grab the last used (highest) image id from the main document's context, but create
     // a fresh one for each secondary XML.
-    ctx = newContext(createOptions, ctx.imageAndShapeIdIncrement);
+    ctx = newContext(createOptions, ctx.imageAndShapeIdIncrement, ctx.linkId);
     const result = await produceJsReport(queryResult, js, ctx);
     if (result.status === 'errors') {
       throw result.errors;

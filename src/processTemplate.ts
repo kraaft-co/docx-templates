@@ -38,7 +38,8 @@ import { logger } from './debug';
 
 export function newContext(
   options: CreateReportOptions,
-  imageAndShapeIdIncrement = 0
+  imageAndShapeIdIncrement = 0,
+  linkId = 0
 ): Context {
   return {
     gCntIf: 0,
@@ -54,7 +55,7 @@ export function newContext(
     },
     imageAndShapeIdIncrement,
     images: {},
-    linkId: 0,
+    linkId,
     links: {},
     htmlId: 0,
     htmls: {},
@@ -154,6 +155,18 @@ export function findHighestImgId(mainDoc: Node): number {
   search(mainDoc);
   if (doc_ids.length > 0) return Math.max(...doc_ids);
   return 0;
+}
+
+// A report rendered from another report's output appends its links to rels
+// that already hold the earlier ones: restarting at link1 duplicates their
+// ids, which Word reports as unreadable content.
+export function findHighestLinkId(rels: Node): number {
+  const ids = rels._children.flatMap(c => {
+    if (c._fTextNode) return [];
+    const match = /^link(\d+)$/.exec(String(c._attrs.Id));
+    return match ? [Number.parseInt(match[1], 10)] : [];
+  });
+  return ids.length > 0 ? Math.max(...ids) : 0;
 }
 
 const debugPrintNode = (node: Node) =>
