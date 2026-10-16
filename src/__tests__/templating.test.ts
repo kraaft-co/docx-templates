@@ -808,6 +808,84 @@ Morbi dignissim consequat ex, non finibus est faucibus sodales. Integer sed just
         expect(rels.match(/Id="link/g)).toHaveLength(2);
       });
 
+      it('39c LINK in a header resolves through the header rels', async () => {
+        const fixture = await JSZip.loadAsync(
+          await fs.promises.readFile(
+            path.join(__dirname, 'fixtures', 'insertInHeaderAndFooter.docx')
+          )
+        );
+        const documentXml = await fixture
+          .file('word/document.xml')!
+          .async('string');
+        fixture.file(
+          'word/document.xml',
+          documentXml.replace(
+            '<w:t>body_command</w:t>',
+            '<w:t>LINK body_link</w:t>'
+          )
+        );
+        const headerXml = await fixture
+          .file('word/header2.xml')!
+          .async('string');
+        fixture.file(
+          'word/header2.xml',
+          headerXml
+            .replace('<w:t>header_command</w:t>', '<w:t>LINK header_link</w:t>')
+            .replace(
+              '</w:hdr>',
+              '<w:p><w:r><w:t>***LINK second_header_link***</w:t></w:r></w:p></w:hdr>'
+            )
+        );
+        const template = await fixture.generateAsync({ type: 'uint8array' });
+
+        const firstPass = await createReport({
+          noSandbox,
+          template,
+          data: {
+            body_link: { url: 'http://body.com', label: 'body' },
+            header_link: { url: 'http://header.com', label: 'header' },
+            footer_command: 'footer',
+          },
+        });
+        const secondPass = await createReport({
+          noSandbox,
+          template: firstPass,
+          data: {
+            second_header_link: {
+              url: 'http://second-header.com',
+              label: 'second header',
+            },
+          },
+          cmdDelimiter: '***',
+        });
+
+        const report = await JSZip.loadAsync(secondPass);
+        const hyperlinkTargets = async (part: string) => {
+          const rels = await report
+            .file(`word/_rels/${part}.rels`)!
+            .async('string');
+          const targets = Object.fromEntries(
+            Array.from(
+              rels.matchAll(/Id="(link\d+)"[^>]*Target="([^"]+)"/g),
+              ([, id, target]) => [id, target]
+            )
+          );
+          const xml = await report.file(`word/${part}`)!.async('string');
+          return Array.from(
+            xml.matchAll(/w:hyperlink r:id="([^"]+)"/g),
+            ([, id]) => targets[id]
+          );
+        };
+
+        expect(await hyperlinkTargets('document.xml')).toEqual([
+          'http://body.com',
+        ]);
+        expect(await hyperlinkTargets('header2.xml')).toEqual([
+          'http://header.com',
+          'http://second-header.com',
+        ]);
+      });
+
       it('3A Processes HTML commands', async () => {
         const template = await fs.promises.readFile(
           path.join(__dirname, 'fixtures', 'htmls.docx')

@@ -242,9 +242,20 @@ async function createReport(
   await processHtmls(htmls1, mainDocument, zip, createOptions.indentXml);
 
   for (const [js, filePath] of prepped_secondaries) {
+    const segments = filePath.split('/');
+    const documentComponent = segments[segments.length - 1];
     // Grab the last used (highest) image id from the main document's context, but create
     // a fresh one for each secondary XML.
-    ctx = newContext(createOptions, ctx.imageAndShapeIdIncrement, ctx.linkId);
+    ctx = newContext(
+      createOptions,
+      ctx.imageAndShapeIdIncrement,
+      findHighestLinkId(
+        await getRelsFromZip(
+          zip,
+          `${TEMPLATE_PATH}/_rels/${documentComponent}.rels`
+        )
+      )
+    );
     const result = await produceJsReport(queryResult, js, ctx);
     if (result.status === 'errors') {
       throw result.errors;
@@ -261,15 +272,13 @@ async function createReport(
     numImages += Object.keys(images2).length;
     numHtmls += Object.keys(htmls2).length;
 
-    const segments = filePath.split('/');
-    const documentComponent = segments[segments.length - 1];
     await processImages(
       images2,
       documentComponent,
       zip,
       createOptions.indentXml
     );
-    await processLinks(links2, mainDocument, zip, createOptions.indentXml);
+    await processLinks(links2, documentComponent, zip, createOptions.indentXml);
     await processHtmls(htmls2, mainDocument, zip, createOptions.indentXml);
   }
 
